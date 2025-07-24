@@ -15,13 +15,17 @@ async function main() {
 }
 
 async function handleSubmit() {
+    if (!window.prompt('Enviar?')) {
+        return;
+    }
     const startIndex = startIndexInput.value;
     const endIndex = endIndexInput.value;
-
+    button.disabled = true;
 
     if (isValidInput(startIndex, endIndex)) {
-        const successfulPrint = await handlePrint(startIndexInput.value, endIndexInput.value);
+        const successfulPrint = await handlePrint(startIndex, endIndex);
     }
+    button.disabled = false;
 }
 
 function handleKeyPress(e) {
@@ -33,6 +37,7 @@ function handleKeyPress(e) {
 
 function isValidInput(startIndex, endIndex) {
     let errorMessage = '';
+    let warningMessage = '';
 
     // If either the startIndex or endIndex don't exist, don't submit anything.
     if (!startIndex || !endIndex) {
@@ -41,9 +46,21 @@ function isValidInput(startIndex, endIndex) {
     if (endIndex < startIndex) {
         errorMessage += 'Números no válidos\n';
     }
-    if (errorMessage || window.prompt('Password?') !== 'bartending!2025') {
+
+    if (endIndex - startIndex > 100) {
+        warningMessage += 'Imprimiendo mas de 100\n';
+    }
+
+    if (errorMessage) {
         window.alert(errorMessage);
         return false;
+    }
+
+    if (warningMessage) {
+        const confirm = window.confirm(warningMessage);
+        if (!confirm) {
+            return;
+        }
     }
     return true;
 }

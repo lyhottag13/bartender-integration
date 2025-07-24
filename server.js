@@ -44,25 +44,26 @@ app.post('/api/send', async (req, res) => {
     const copies = endIndex - startIndex + 1;
 
     const serialArray = [];
+    const responseObject = {};
 
-    let sqlString = 'SELECT * FROM bartender_printed WHERE';
+
     for (let i = 0; i < copies; i++) {
-        sqlString += `${i !== 0 ? ' OR' : ''} serial_number LIKE ?`;
-
         const currentSerial = `00000${Number.parseInt(startIndex) + i}`.slice(-5);
         serialArray.push(currentSerial);
     }
 
-    const uniquePrintResults = await isUniquePrint(sqlString, serialArray);
+    const uniquePrintResults = await isUniquePrint(serialArray);
     if (!uniquePrintResults.success) {
-        res.json({ err: `Valores ya impresados: ${uniquePrintResults.range}` });
+        responseObject.err = `Numeros ya impresados: ${uniquePrintResults.range}`;
+        res.json(responseObject);
         return;
     }
     const successfulPrint = await handlePrint(serialArray, copies);
     if (successfulPrint) {
-        insertSerials(serialArray);
+        const successfulInsert = await insertSerials(serialArray);
+        responseObject.successfulInsert = successfulInsert;
     }
-    res.json({ successfulPrint });
+    res.json(responseObject);
 });
 
 app.post('/api/password', (req, res) => {
@@ -84,13 +85,18 @@ async function handlePrint(serialArray, copies) {
 }
 
 /**
- * Checks if the serials to be printed have already been printed through their
- * existence in the bartender_printed table.
- * @param {string} sqlString 
+ * Checks if the serials have already been printed by SELECTing them in the
+ * bartender_printed table. If they're not in the table, then they haven't
+ * been printed yet, and this function returns true.
+ * @param {string} sqlString The SQL query to be used in the 
  * @param {string[]} serialArray 
  * @returns 
  */
-async function isUniquePrint(sqlString, serialArray) {
+async function isUniquePrint(serialArray) {
+    let sqlString = 'SELECT * FROM bartender_printed WHERE';
+    for (let i = 0; i < serialArray.length; i++) {
+        sqlString += `${i !== 0 ? ' OR' : ''} serial_number LIKE ?`;
+    }
     const serialArrayWildcard = serialArray.map(serial => `%${serial}`);
     const [rows] = await pool.execute(sqlString, serialArrayWildcard);
     const existingSerials = rows.map(row => row.serial_number);
@@ -109,7 +115,12 @@ async function insertSerials(serialArray) {
     for (let i = 1; i < serialArray.length; i++) {
         sqlString += ', (?)';
     }
-    pool.query(sqlString, serialArray);
+    try {
+        await pool.query(sqlString, serialArray);
+        return true;
+    } catch (err) {
+        return false;
+    }
 }
 
 async function sendPrint(startSerial, copies) {
