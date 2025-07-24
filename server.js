@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/send', async (req, res) => {
-    const { startIndex, endIndex } = req.body;
+    const { startIndex, endIndex, override } = req.body;
     const copies = endIndex - startIndex + 1;
 
     const serialArray = [];
@@ -53,7 +53,7 @@ app.post('/api/send', async (req, res) => {
     }
 
     const uniquePrintResults = await isUniquePrint(serialArray);
-    if (!uniquePrintResults.success) {
+    if (!uniquePrintResults.unique && !override) {
         responseObject.err = `Numeros ya impresados: ${uniquePrintResults.range}`;
         res.json(responseObject);
         return;
@@ -69,9 +69,9 @@ app.post('/api/send', async (req, res) => {
 app.post('/api/password', (req, res) => {
     const { password } = req.body;
     if (password === 'bartending!2025') {
-        res.json({ isValidPassword: true });
+        res.json({ successfulPassword: true });
     } else {
-        res.json({ isValidPassword: false });
+        res.json({ sucessfulPassword: false });
     }
 });
 
@@ -88,9 +88,9 @@ async function handlePrint(serialArray, copies) {
  * Checks if the serials have already been printed by SELECTing them in the
  * bartender_printed table. If they're not in the table, then they haven't
  * been printed yet, and this function returns true.
- * @param {string} sqlString The SQL query to be used in the 
- * @param {string[]} serialArray 
- * @returns 
+ * @param {string[]} serialArray The serial numbers that will be checked 
+ *                               against the database.
+ * @returns An object with the success of the uniqueness
  */
 async function isUniquePrint(serialArray) {
     let sqlString = 'SELECT * FROM bartender_printed WHERE';
@@ -104,9 +104,9 @@ async function isUniquePrint(serialArray) {
     if (existingSerials.length > 0) {
         const range = `${Math.min(...existingSerials)} - ${Math.max(...existingSerials)}`;
         console.log(range);
-        return { success: false, range };
+        return { unique: false, range };
     }
-    return { success: true };
+    return { unique: true };
 }
 
 async function insertSerials(serialArray) {

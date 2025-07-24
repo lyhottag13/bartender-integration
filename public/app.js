@@ -1,10 +1,13 @@
-const button = document.getElementById('submit');
+const printButton = document.getElementById('print');
+const reprintButton = document.getElementById('reprint');
 const startIndexInput = document.getElementById('start-index');
 const endIndexInput = document.getElementById('end-index');
 
 async function main() {
     document.addEventListener('keypress', handleKeyPress)
-    button.addEventListener('click', handleSubmit);
+    printButton.addEventListener('click', handleSubmit);
+    reprintButton.addEventListener('click', handleSubmit);
+
     startIndexInput.oninput = function () {
         this.value = this.value.replace(/[^0-9]/g, '');
     }
@@ -14,24 +17,36 @@ async function main() {
     reset();
 }
 
-async function handleSubmit() {
-    if (!window.prompt('Enviar?')) {
+async function handleSubmit(e) {
+    console.log(e);
+    if (!window.confirm('Enviar?')) {
         return;
     }
     const startIndex = startIndexInput.value;
     const endIndex = endIndexInput.value;
-    button.disabled = true;
+    printButton.disabled = true;
 
     if (isValidInput(startIndex, endIndex)) {
+        if (e?.target === reprintButton) {
+            const successfulPassword = await submitPassword(window.prompt('Ingresa contraseña'));
+            if (successfulPassword) {
+                await handlePrint(startIndex, endIndex, true);
+                return;
+            }
+        }
         const successfulPrint = await handlePrint(startIndex, endIndex);
     }
-    button.disabled = false;
+    printButton.disabled = false;
 }
 
+/**
+ * Handles when the user presses enter while on the print screen.
+ * @param {event} e The event that fires when the user presses enter.
+ */
 function handleKeyPress(e) {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !printButton.disabled) {
         e.preventDefault();
-        handleSubmit();
+        handleSubmit(e);
     }
 }
 
@@ -43,10 +58,13 @@ function isValidInput(startIndex, endIndex) {
     if (!startIndex || !endIndex) {
         errorMessage += 'Ingresa índices\n';
     }
+
+    // If the endIndex is before the startIndex, the numbers were invalid.
     if (endIndex < startIndex) {
         errorMessage += 'Números no válidos\n';
     }
 
+    // Warns the user if the difference in start and end indexes surpasses a number.
     if (endIndex - startIndex > 100) {
         warningMessage += 'Imprimiendo mas de 100\n';
     }
@@ -65,7 +83,7 @@ function isValidInput(startIndex, endIndex) {
     return true;
 }
 
-async function handlePrint(startIndex, endIndex) {
+async function handlePrint(startIndex, endIndex, override) {
     const data = await (await fetch('/api/send', {
         method: 'POST',
         headers: {
@@ -73,7 +91,8 @@ async function handlePrint(startIndex, endIndex) {
         },
         body: JSON.stringify({
             startIndex,
-            endIndex
+            endIndex,
+            override
         })
     })).json();
     if (data.err) {
@@ -83,6 +102,17 @@ async function handlePrint(startIndex, endIndex) {
         window.alert('Impresión exitosa');
         return true;
     }
+}
+
+async function submitPassword(password) {
+    const { successfulPassword } = await (await fetch('/api/password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: `{"password":"${password}"}`
+    })).json();
+    return successfulPassword;
 }
 
 function reset() {
