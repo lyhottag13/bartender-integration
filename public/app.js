@@ -25,18 +25,22 @@ async function handleSubmit(e) {
     const startIndex = startIndexInput.value;
     const endIndex = endIndexInput.value;
     printButton.disabled = true;
+    reprintButton.disabled = true;
 
     if (isValidInput(startIndex, endIndex)) {
-        if (e?.target === reprintButton) {
+        // If the reprintButton was pressed, then run a special override.
+        if (e.target === reprintButton) {
             const successfulPassword = await submitPassword(window.prompt('Ingresa contraseña'));
             if (successfulPassword) {
                 await handlePrint(startIndex, endIndex, true);
                 return;
             }
+        } else {
+            const successfulPrint = await handlePrint(startIndex, endIndex);
         }
-        const successfulPrint = await handlePrint(startIndex, endIndex);
     }
     printButton.disabled = false;
+    reprintButton.disabled = false;
 }
 
 /**

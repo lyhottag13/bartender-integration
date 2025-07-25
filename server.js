@@ -1,7 +1,7 @@
 import pool from './src/db.js';
 import { getISOWeek } from 'date-fns';
 import port from './src/port.js';
-import cors from 'cors';
+import hostname from './src/hostname.js';
 
 // START BOILERPLATE.
 
@@ -24,16 +24,6 @@ app.listen(port, '0.0.0.0', () => {
 
 // END BOILERPLATE.
 
-app.use(cors());
-
-// Sets http options for Integration Builder, otherwise it doesn't take the POST
-app.options('/api/send', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.sendStatus(204); // 204 is more appropriate than 200 for preflight
-});
-
 // Shows the main app screen.
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'app.html'));
@@ -41,12 +31,19 @@ app.get('/', (req, res) => {
 
 app.post('/api/send', async (req, res) => {
     const { startIndex, endIndex, override } = req.body;
+    /*
+    The number of serializations to perform. Plus one since the first number is
+    also printed. For example, if I print 100 to 101, then copies = 101 - 100 which
+    is one. However, I want to print 100 and 101, which is two, so the program
+    includes a plus one.
+    */
     const copies = endIndex - startIndex + 1;
 
-    const serialArray = [];
-    const responseObject = {};
+    const serialArray = []; // An array of serial numbers, only the five digits at the end.
+    const responseObject = {}; // The object that will be res'ed to the client.
 
 
+    // Builds the serialArray with every serial between startIndex and endIndex.
     for (let i = 0; i < copies; i++) {
         const currentSerial = `00000${Number.parseInt(startIndex) + i}`.slice(-5);
         serialArray.push(currentSerial);
@@ -58,6 +55,7 @@ app.post('/api/send', async (req, res) => {
         res.json(responseObject);
         return;
     }
+
     const successfulPrint = await handlePrint(serialArray, copies);
     if (successfulPrint) {
         const successfulInsert = await insertSerials(serialArray);
@@ -76,9 +74,12 @@ app.post('/api/password', (req, res) => {
 });
 
 async function handlePrint(serialArray, copies) {
+    // Builds the starting serial number for the printer to start with.
     const year = new Date().getFullYear().toString();
     const datecode = `${year.slice(-2)}${getISOWeek(new Date())}`;
     const startSerial = `APBUESA${datecode + serialArray[0]}`;
+
+    // Sends the print and checks the status of the print.
     const { Status } = await sendPrint(startSerial, copies);
     const successfulPrint = Status === 'RanToCompletion';
     return successfulPrint;
@@ -97,18 +98,30 @@ async function isUniquePrint(serialArray) {
     for (let i = 0; i < serialArray.length; i++) {
         sqlString += `${i !== 0 ? ' OR' : ''} serial_number LIKE ?`;
     }
+    // Prepends a % to each serial number since it helps in the query by acting as a wildcard.
     const serialArrayWildcard = serialArray.map(serial => `%${serial}`);
     const [rows] = await pool.execute(sqlString, serialArrayWildcard);
+
+    // Only takes the serial numbers from each row, and removes the MySQL primary key.
     const existingSerials = rows.map(row => row.serial_number);
-    console.log(existingSerials);
+
+    console.log('Existing Serials:', existingSerials.length === 0 ? 'None!' : existingSerials);
     if (existingSerials.length > 0) {
+        // Finds the minimum and maximum in the serials that already exist to return a range.
         const range = `${Math.min(...existingSerials)} - ${Math.max(...existingSerials)}`;
-        console.log(range);
+        console.log('Range:',range); // Server-side debug.
         return { unique: false, range };
     }
     return { unique: true };
 }
 
+/**
+ * Inserts the serial numbers from serialArray into the database so that the
+ * app can eventually query new numbers against the database. This prevents
+ * duplicate stickers from accidentally being printed.
+ * @param {string[]} serialArray 
+ * @returns 
+ */
 async function insertSerials(serialArray) {
     let sqlString = `INSERT INTO bartender_printed (serial_number) VALUES (?)`;
     // Starts at i = 1 since we already inserted one ?.
@@ -123,8 +136,16 @@ async function insertSerials(serialArray) {
     }
 }
 
+/**
+ * Sends the printing parameters to the Integration Builder app's API. The API
+ * might change locations or IP address, so it's a good idea to have the hostname
+ * be variable.
+ * @param {string} startSerial 
+ * @param {number} copies 
+ * @returns 
+ */
 async function sendPrint(startSerial, copies) {
-    const data = await (await fetch('http://localhost:3010/Integration/WebServiceIntegration/Execute', {
+    const printData = await (await fetch(`http://${hostname}:3010/Integration/WebServiceIntegration/Execute`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -134,5 +155,5 @@ async function sendPrint(startSerial, copies) {
             Copies: copies
         })
     })).json();
-    return data;
+    return printData;
 }
