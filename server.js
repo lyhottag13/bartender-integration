@@ -109,7 +109,7 @@ async function isUniquePrint(serialArray) {
     if (existingSerials.length > 0) {
         // Finds the minimum and maximum in the serials that already exist to return a range.
         const range = `${Math.min(...existingSerials)} - ${Math.max(...existingSerials)}`;
-        console.log('Range:',range); // Server-side debug.
+        console.log('Range:', range); // Server-side debug.
         return { unique: false, range };
     }
     return { unique: true };
