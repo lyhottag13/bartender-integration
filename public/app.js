@@ -1,20 +1,25 @@
-const printButton = document.getElementById('print');
-const reprintButton = document.getElementById('reprint');
-const startIndexInput = document.getElementById('start-index');
-const endIndexInput = document.getElementById('end-index');
+const elements = {
+    printButton: document.getElementById('print'),
+    reprintButton: document.getElementById('reprint'),
+    startIndexInput: document.getElementById('start-index'),
+    endIndexInput: document.getElementById('end-index'),
+    datecode: document.getElementById('datecode')
+};
 
 async function main() {
-    document.addEventListener('keypress', handleKeyPress)
-    printButton.addEventListener('click', handleSubmit);
-    reprintButton.addEventListener('click', handleSubmit);
+    document.addEventListener('keypress', handleKeyPress);
+    elements.printButton.addEventListener('click', handleSubmit);
+    elements.reprintButton.addEventListener('click', handleSubmit);
 
-    startIndexInput.oninput = function () {
+    elements.startIndexInput.oninput = function () {
         this.value = this.value.replace(/[^0-9]/g, '');
-    }
-    endIndexInput.oninput = function () {
+    };
+    elements.endIndexInput.oninput = function () {
         this.value = this.value.replace(/[^0-9]/g, '');
-    }
+    };
     reset();
+    const {datecode} = await (await fetch('/api/getDatecode')).json();
+    elements.datecode.innerText = `Datecode: ${datecode}`;
 }
 
 async function handleSubmit(e) {
@@ -22,14 +27,14 @@ async function handleSubmit(e) {
     if (!window.confirm('Enviar?')) {
         return;
     }
-    const startIndex = startIndexInput.value;
-    const endIndex = endIndexInput.value;
-    printButton.disabled = true;
-    reprintButton.disabled = true;
+
+    const startIndex = elements.startIndexInput.value;
+    const endIndex = elements.endIndexInput.value;
+    elements.printButton.disabled = true;
+    elements.reprintButton.disabled = true;
 
     if (isValidInput(startIndex, endIndex)) {
-        // If the reprintButton was pressed, then run a special override.
-        if (e.target === reprintButton) {
+        if (e.target === elements.reprintButton) {
             const successfulPassword = await submitPassword(window.prompt('Ingresa contraseña'));
             if (successfulPassword) {
                 await handlePrint(startIndex, endIndex, true);
@@ -39,16 +44,12 @@ async function handleSubmit(e) {
             const successfulPrint = await handlePrint(startIndex, endIndex);
         }
     }
-    printButton.disabled = false;
-    reprintButton.disabled = false;
+    elements.printButton.disabled = false;
+    elements.reprintButton.disabled = false;
 }
 
-/**
- * Handles when the user presses enter while on the print screen.
- * @param {event} e The event that fires when the user presses enter.
- */
 function handleKeyPress(e) {
-    if (e.key === 'Enter' && !printButton.disabled) {
+    if (e.key === 'Enter' && !elements.printButton.disabled) {
         e.preventDefault();
         handleSubmit(e);
     }
@@ -58,17 +59,14 @@ function isValidInput(startIndex, endIndex) {
     let errorMessage = '';
     let warningMessage = '';
 
-    // If either the startIndex or endIndex don't exist, don't submit anything.
     if (!startIndex || !endIndex) {
         errorMessage += 'Ingresa índices\n';
     }
 
-    // If the endIndex is before the startIndex, the numbers were invalid.
     if (endIndex < startIndex) {
         errorMessage += 'Números no válidos\n';
     }
 
-    // Warns the user if the difference in start and end indexes surpasses a number.
     if (endIndex - startIndex > 100) {
         warningMessage += 'Imprimiendo mas de 100\n';
     }
@@ -120,8 +118,8 @@ async function submitPassword(password) {
 }
 
 function reset() {
-    startIndexInput.value = '';
-    endIndexInput.value = '';
+    elements.startIndexInput.value = '';
+    elements.endIndexInput.value = '';
 }
 
 main();

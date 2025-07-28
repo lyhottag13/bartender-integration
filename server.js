@@ -1,5 +1,5 @@
 import pool from './src/db.js';
-import { getISOWeek } from 'date-fns';
+import { getDate, getISOWeek } from 'date-fns';
 import port from './src/port.js';
 import hostname from './src/hostname.js';
 
@@ -73,18 +73,24 @@ app.post('/api/password', (req, res) => {
     }
 });
 
+app.get('/api/getDatecode', (req, res) => {
+    res.json({ datecode: getDatecode() });
+});
+
 async function handlePrint(serialArray, copies) {
-    // Builds the starting serial number for the printer to start with.
-    const year = new Date().getFullYear().toString();
-    const datecode = `${year.slice(-2)}${getISOWeek(new Date())}`;
-    const startSerial = `APBUESA${datecode + serialArray[0]}`;
+    const startSerial = `APBUESA${getDatecode() + serialArray[0]}`;
 
     // Sends the print and checks the status of the print.
     const { Status } = await sendPrint(startSerial, copies);
     const successfulPrint = Status === 'RanToCompletion';
     return successfulPrint;
 }
-
+function getDatecode() {
+    // Builds the starting serial number for the printer to start with.
+    const year = new Date().getFullYear().toString();
+    const datecode = `${year.slice(-2)}${getISOWeek(new Date())}`;
+    return datecode;
+}
 /**
  * Checks if the serials have already been printed by SELECTing them in the
  * bartender_printed table. If they're not in the table, then they haven't
