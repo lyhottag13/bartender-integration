@@ -9,15 +9,18 @@
 <body>
     <h1></h1>
     <div id="app-wrapper">
-        <div id="datecode"></div>
+        <div id="datecode-wrapper"><span id="datecode"></span></div>
         <div id="input-wrapper">
             <input id="start-index" placeholder="Índice inicial" maxlength="5">
             <span>→</span>
             <input id="end-index" placeholder="Índice final" maxlength="5">
         </div>
         <div id="button-wrapper">
-            <button id="print">Imprimir</button>
-            <button id="reprint">Reimprimir</button>
+            <button id="print" class="button-hover">Imprimir</button>
+            <button id="reprint" class="button-hover">Reimprimir</button>
+        </div>
+        <div id="modal-wrapper">
+            <span id="modal-text">Printing...</span>
         </div>
     </div>
     <script type="module" src="app.js"></script>

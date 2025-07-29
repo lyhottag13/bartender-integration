@@ -2,11 +2,11 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 50px;
 }
 
 body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 50px;
     background-color: rgb(189, 189, 189);
 }
 
@@ -19,7 +19,7 @@ body {
     align-items: center;
 }
 
-#datecode {
+#datecode-wrapper {
     font-family: 'Courier New', Courier, monospace;
     font-weight: 700;
     border-radius: 20px;
@@ -27,11 +27,12 @@ body {
     color: rgb(0, 220, 0);
     background-color: black;
     border: 5px solid gray;
+    span {
+        text-shadow: 0 0 10px rgb(0, 146, 0);
+    }
 }
 
-#input-wrapper {
-    
-}
+#input-wrapper {}
 
 #input-wrapper input {
     font-family: monospace;
@@ -65,7 +66,7 @@ body {
     transition: all 0.2s cubic-bezier(0.075, 0.82, 0.165, 1);
 }
 
-#button-wrapper button:hover {
+#button-wrapper .button-hover:hover {
     /* box-shadow: 0 0 20px black; */
     transform: rotate(-2deg);
     filter: drop-shadow(5px 5px 10px black) brightness(0.8);
@@ -79,4 +80,23 @@ body {
 #reprint {
     background-color: black;
     color: white;
+}
+
+#modal-wrapper {
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 1000;
+    display: grid;
+    position: absolute;
+    background-color: white;
+    height: 30vh;
+    width: 40vw;
+    top: 100vh;
+    left: 50vw;
+    transform: translateX(-50%);
+    border: 3px solid black;
+    border-radius: 20px;
+    text-align: center;
+    justify-items: center;
+    align-items: center;
+    transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
 }

@@ -49,19 +49,24 @@ app.post('/api/send', async (req, res) => {
         serialArray.push(currentSerial);
     }
 
-    const uniquePrintResults = await isUniquePrint(serialArray);
-    if (!uniquePrintResults.unique && !override) {
-        responseObject.err = `Numeros ya impresados: ${uniquePrintResults.range}`;
-        res.json(responseObject);
-        return;
-    }
+    try {
+        const uniquePrintResults = await isUniquePrint(serialArray);
+        if (!uniquePrintResults.unique && !override) {
+            responseObject.err = `Numeros ya impresados: ${uniquePrintResults.range}`;
+            res.json(responseObject);
+            return;
+        }
 
-    const successfulPrint = await handlePrint(serialArray, copies);
-    if (successfulPrint) {
-        const successfulInsert = await insertSerials(serialArray);
-        responseObject.successfulInsert = successfulInsert;
+        const successfulPrint = await handlePrint(serialArray, copies);
+        if (successfulPrint) {
+            const successfulInsert = await insertSerials(serialArray);
+            responseObject.successfulInsert = successfulInsert;
+        }
+        res.json(responseObject);
+    } catch (err) {
+        console.log(err);
+        res.json({ err: 'Conexion a Integration Builder fallada.' });
     }
-    res.json(responseObject);
 });
 
 app.post('/api/password', (req, res) => {

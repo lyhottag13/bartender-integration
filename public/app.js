@@ -1,10 +1,5 @@
-const elements = {
-    printButton: document.getElementById('print'),
-    reprintButton: document.getElementById('reprint'),
-    startIndexInput: document.getElementById('start-index'),
-    endIndexInput: document.getElementById('end-index'),
-    datecode: document.getElementById('datecode')
-};
+import elements from "./utils/elements.js";
+import toggleModal from "./utils/printingModal.js";
 
 async function main() {
     document.addEventListener('keypress', handleKeyPress);
@@ -18,7 +13,7 @@ async function main() {
         this.value = this.value.replace(/[^0-9]/g, '');
     };
     reset();
-    const {datecode} = await (await fetch('/api/getDatecode')).json();
+    const { datecode } = await (await fetch('/api/getDatecode')).json();
     elements.datecode.innerText = `Datecode: ${datecode}`;
 }
 
@@ -28,24 +23,46 @@ async function handleSubmit(e) {
         return;
     }
 
-    const startIndex = elements.startIndexInput.value;
-    const endIndex = elements.endIndexInput.value;
-    elements.printButton.disabled = true;
-    elements.reprintButton.disabled = true;
+    const startIndex = Number(elements.startIndexInput.value);
+    const endIndex = Number(elements.endIndexInput.value);
+    toggleButtons(false);
 
-    if (isValidInput(startIndex, endIndex)) {
-        if (e.target === elements.reprintButton) {
-            const successfulPassword = await submitPassword(window.prompt('Ingresa contraseña'));
-            if (successfulPassword) {
-                await handlePrint(startIndex, endIndex, true);
-                return;
-            }
-        } else {
-            const successfulPrint = await handlePrint(startIndex, endIndex);
+    const checkInputData = checkInput(startIndex, endIndex);
+    if (checkInputData.err) {
+        window.alert(checkInputData.err);
+        toggleButtons(true);
+        return;
+    }
+    if (checkInputData.warn) {
+        const confirm = window.confirm(checkInputData.warn);
+        if (!confirm) {
+            toggleButtons(true);
+            return;
         }
     }
-    elements.printButton.disabled = false;
-    elements.reprintButton.disabled = false;
+    // Handles the reprint override.
+    let override = false;
+    if (e.target === elements.reprintButton) {
+        // Asks for a password and checks if it's correct.
+        const password = window.prompt('Ingresa contraseña:');
+        const isValidPassword = await submitPassword(password);
+        if (!isValidPassword) {
+            window.alert('Contraseña invalida');
+            toggleButtons(true);
+            return;
+        }
+        window.alert('Contraseña correcta!');
+        override = true;
+    }
+    toggleModal(true);
+    const printData = await handlePrint(startIndex, endIndex, override);
+    if (printData.err) {
+        window.alert(`Algo fue mal:\n${printData.err}`);
+    } else {
+        window.alert('Impresion exitosa');
+    }
+    toggleModal(false);
+    toggleButtons(true);
 }
 
 function handleKeyPress(e) {
@@ -55,16 +72,19 @@ function handleKeyPress(e) {
     }
 }
 
-function isValidInput(startIndex, endIndex) {
+function checkInput(startIndex, endIndex) {
     let errorMessage = '';
     let warningMessage = '';
 
     if (!startIndex || !endIndex) {
         errorMessage += 'Ingresa índices\n';
     }
-
     if (endIndex < startIndex) {
         errorMessage += 'Números no válidos\n';
+    }
+
+    if (endIndex - startIndex > 500) {
+        errorMessage += 'No se puede impirimir mas de 500 a la vez';
     }
 
     if (endIndex - startIndex > 100) {
@@ -72,17 +92,13 @@ function isValidInput(startIndex, endIndex) {
     }
 
     if (errorMessage) {
-        window.alert(errorMessage);
-        return false;
+        return { err: errorMessage };
     }
 
     if (warningMessage) {
-        const confirm = window.confirm(warningMessage);
-        if (!confirm) {
-            return;
-        }
+        return { warn: warningMessage };
     }
-    return true;
+    return { success: true };
 }
 
 async function handlePrint(startIndex, endIndex, override) {
@@ -97,13 +113,7 @@ async function handlePrint(startIndex, endIndex, override) {
             override
         })
     })).json();
-    if (data.err) {
-        window.alert(`Algo fue mal:\n${data.err}`);
-        return false;
-    } else {
-        window.alert('Impresión exitosa');
-        return true;
-    }
+    return data;
 }
 
 async function submitPassword(password) {
@@ -120,6 +130,15 @@ async function submitPassword(password) {
 function reset() {
     elements.startIndexInput.value = '';
     elements.endIndexInput.value = '';
+}
+
+function toggleButtons(enabled) {
+    elements.printButton.class = enabled ? 'button-hover' : '';
+    elements.printButton.style.filter = enabled ? '' : 'brightness(0.7)';
+    elements.reprintButton.class = enabled ? 'button-hover' : '';
+    elements.reprintButton.style.filter = enabled ? '' : 'brightness(0.7)';
+    elements.printButton.disabled = !enabled;
+    elements.reprintButton.disabled = !enabled;
 }
 
 main();
