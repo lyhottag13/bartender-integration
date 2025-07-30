@@ -1,5 +1,6 @@
 import elements from "./utils/elements.js";
 import toggleModal from "./utils/printingModal.js";
+import { getISOWeek } from 'date-fns';
 
 /**
  * Initializes everything on the page. Adds event listeners and resets the
@@ -9,10 +10,8 @@ async function main() {
     document.addEventListener('keypress', handleKeyPress);
     elements.printButton.addEventListener('click', handleSubmit);
     elements.reprintButton.addEventListener('click', handleSubmit);
-    
-    // Fetches the datecode from the server because otherwise we need a long CDN import.
-    const { datecode } = await (await fetch('/api/getDatecode')).json();
-    elements.datecode.innerText = `Datecode: ${datecode}`;
+
+    elements.datecode.innerText = `Datecode: ${getDatecode()}`;
 
     elements.startIndexInput.oninput = function () {
         this.value = this.value.replace(/[^0-9]/g, '');
@@ -52,20 +51,27 @@ async function handleSubmit(e) {
     }
     // Handles the reprint override.
     let override = false; // Overrides the print cancellation if there are repeat indices.
+    let newDatecode;
     if (e.target === elements.reprintButton) {
         // Asks for a password and checks if it's correct.
         const password = window.prompt('Ingresa contraseña:');
-        const isValidPassword = await submitPassword(password);
-        if (!isValidPassword) {
-            window.alert('Contraseña invalida');
+        const passwordData = await submitPassword(password);
+        if (passwordData.err) {
+            window.alert(passwordData.err);
             return;
         }
-        window.alert('Contraseña correcta!');
+        newDatecode = window.prompt('Ingresa datecode nuevo.');
+        const datecodeData = checkDatecode(newDatecode);
+        if (datecodeData.err) {
+            window.alert(`Datecode invalido:\n${datecodeData.err}`);
+            return;
+        }
         override = true;
     }
     toggleButtons(false);
     toggleModal(true);
-    const printData = await handlePrint(startIndex, endIndex, override);
+    const printData = await handlePrint(startIndex, endIndex, override, override ? newDatecode : getDatecode());
+    console.log(printData);
     if (printData.err) {
         window.alert(`Algo fue mal:\n${printData.err}`);
     } else {
@@ -122,19 +128,29 @@ function checkInput(startIndex, endIndex) {
  * @param {boolean} override 
  * @returns The data associated with the print fetch.
  */
-async function handlePrint(startIndex, endIndex, override) {
-    const data = await (await fetch('/api/send', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            startIndex,
-            endIndex,
-            override
-        })
-    })).json();
-    return data;
+async function handlePrint(startIndex, endIndex, override, datecode) {
+    try {
+        const response = await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                startIndex,
+                endIndex,
+                override,
+                datecode
+            })
+        });
+        if (!response.ok) {
+            throw new Error('Something went wrong with the API call.');
+        }
+        const printData = await response.json();
+        if (printData.err) {
+            return {err: printData.err};
+        }
+        return {};
+    } catch (err) {
+        return { err: err.message };
+    }
 }
 
 /**
@@ -145,16 +161,61 @@ async function handlePrint(startIndex, endIndex, override) {
  * @returns Whether the password was correct.
  */
 async function submitPassword(password) {
-    const { successfulPassword } = await (await fetch('/api/password', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            password
-        })
-    })).json();
-    return successfulPassword;
+    try {
+        const response = await fetch('/api/password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        if (!response.ok) {
+            throw new Error(`Something went wrong with the API call.`);
+        }
+        const passwordData = await response.json();
+        if (passwordData.err) {
+            return { err: passwordData.err }
+        }
+        return {};
+
+    } catch (err) {
+        return { err: err.message };
+    }
+}
+
+/**
+ * Gets the current datecode as four digits, YYWW. The YY are the
+ * final digits of the current year, so in 2025 it's 25, and the WW are the
+ * digits of the current week.
+ * @returns The current datecode.
+ */
+function getDatecode() {
+    // Builds the current datecode.
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+
+    // Week is padded since it can return just single digit numbers, and we want 01, not 1.
+    const week = getISOWeek(now).toString().padStart(2, '0');
+
+    const datecode = Number(`${year}${week}`);
+    return datecode;
+}
+
+/**
+ * Checks whether the datecode is valid. There are three validations.
+ * @param {string} newDatecode The user input datecode.
+ * @returns The error messages associated with the datecode.
+ */
+function checkDatecode(newDatecode) {
+    let err = '';
+    if (newDatecode.length !== 4) {
+        err += 'Longitud de datecode invalido\n';
+    }
+    if (!/\d/.test(newDatecode)) {
+        err += 'Datecode solo acepta digitos\n';
+    }
+    if (Number(newDatecode) > getDatecode()) {
+        err += 'Aun no se pueden imprimir estas etiquetas\n';
+    }
+    return { err };
 }
 
 /**

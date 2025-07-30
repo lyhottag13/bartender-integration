@@ -1,5 +1,4 @@
 import pool from './src/db.js';
-import { getDate, getISOWeek } from 'date-fns';
 import port from './src/port.js';
 import hostname from './src/hostname.js';
 import cors from 'cors';
@@ -7,7 +6,7 @@ import cors from 'cors';
 // START BOILERPLATE.
 
 import path from 'path';
-import express from 'express';
+import express, { response } from 'express';
 import { fileURLToPath } from 'url';
 const app = express();
 
@@ -32,7 +31,7 @@ app.listen(port, '0.0.0.0', () => {
 // });
 
 app.post('/api/send', async (req, res) => {
-    const { startIndex, endIndex, override } = req.body;
+    const { startIndex, endIndex, override, datecode } = req.body;
     /*
     The number of serializations to perform. Plus one since the first number is
     also printed. For example, if I print 100 to 101, then copies = 101 - 100 which
@@ -44,60 +43,74 @@ app.post('/api/send', async (req, res) => {
     const serialArray = []; // An array of serial numbers, only the five digits at the end.
     const responseObject = {}; // The object that will be res'ed to the client.
 
-
     // Builds the serialArray with every serial between startIndex and endIndex.
     for (let i = 0; i < copies; i++) {
         const currentSerial = `00000${Number.parseInt(startIndex) + i}`.slice(-5);
         serialArray.push(currentSerial);
     }
 
-    try {
-        const uniquePrintResults = await isUniquePrint(serialArray);
-        if (!uniquePrintResults.unique && !override) {
-            responseObject.err = `Numeros ya impresados: ${uniquePrintResults.range}`;
+    const uniquePrintData = await isUniquePrint(serialArray);
+    if (uniquePrintData.err) {
+        const isOverridden = uniquePrintData.overridable && override; 
+        if (!isOverridden) {
+            responseObject.err = uniquePrintData.err;
             res.json(responseObject);
             return;
         }
-
-        const successfulPrint = await handlePrint(serialArray, copies);
-        if (successfulPrint) {
-            const successfulInsert = await insertSerials(serialArray);
-            responseObject.successfulInsert = successfulInsert;
-        }
-        res.json(responseObject);
-    } catch (err) {
-        console.log(err);
-        res.json({ err: 'Conexion a Integration Builder fallada.' });
     }
+
+    const printData = await handlePrint(serialArray, copies, datecode);
+    if (printData.err) {
+        responseObject.err = printData.err;
+        res.json(responseObject);
+        return;
+    }
+
+    const insertData = await insertSerials(serialArray);
+    if (!insertData.err) {
+        responseObject.err = insertData.err;
+        res.json(responseObject);
+        return;
+    }
+    // If everything went smoothly, the responseObject return has no err.
+    res.json({});
 });
 
 app.post('/api/password', (req, res) => {
     const { password } = req.body;
-    if (password === 'bartending!2025') {
-        res.json({ successfulPassword: true });
-    } else {
-        res.json({ sucessfulPassword: false });
+    if (password !== 'bartending!2025') {
+        res.json({ err: 'Contraseña inválida' });
+        return;
     }
+    res.json({});
 });
 
-app.get('/api/getDatecode', (req, res) => {
-    res.json({ datecode: getDatecode() });
-});
-
-async function handlePrint(serialArray, copies) {
-    const startSerial = `APBUESA${getDatecode() + serialArray[0]}`;
+async function handlePrint(serialArray, copies, datecode) {
+    const startSerial = `APBUESA${datecode + serialArray[0]}`;
 
     // Sends the print and checks the status of the print.
-    const { Status } = await sendPrint(startSerial, copies);
-    const successfulPrint = Status === 'RanToCompletion';
-    return successfulPrint;
+    try {
+        const response = await fetch(`http://${hostname}:3010/Integration/WebServiceIntegration/Execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                SerialNumber: startSerial,
+                Copies: copies
+            })
+        });
+        if (!response.ok) {
+            throw new Error('Something went wrong with the API call.');
+        }
+        const printData = await response.json();
+        if (printData.Status !== 'RanToCompletion') {
+            return { err: 'Algo salió mal con la impresión.' };
+        }
+        return {};
+    } catch (err) {
+        return { err: err.message };
+    }
 }
-function getDatecode() {
-    // Builds the starting serial number for the printer to start with.
-    const year = new Date().getFullYear().toString();
-    const datecode = `${year.slice(-2)}${getISOWeek(new Date())}`;
-    return datecode;
-}
+
 /**
  * Checks if the serials have already been printed by SELECTing them in the
  * bartender_printed table. If they're not in the table, then they haven't
@@ -113,19 +126,24 @@ async function isUniquePrint(serialArray) {
     }
     // Prepends a % to each serial number since it helps in the query by acting as a wildcard.
     const serialArrayWildcard = serialArray.map(serial => `%${serial}`);
-    const [rows] = await pool.execute(sqlString, serialArrayWildcard);
 
-    // Only takes the serial numbers from each row, and removes the MySQL primary key.
-    const existingSerials = rows.map(row => row.serial_number);
+    try {
+        const [rows] = await pool.execute(sqlString, serialArrayWildcard);
 
-    console.log('Existing Serials:', existingSerials.length === 0 ? 'None!' : existingSerials);
-    if (existingSerials.length > 0) {
-        // Finds the minimum and maximum in the serials that already exist to return a range.
-        const range = `${Math.min(...existingSerials)} - ${Math.max(...existingSerials)}`;
-        console.log('Range:', range); // Server-side debug.
-        return { unique: false, range };
+        // Only takes the serial numbers from each row, and removes the MySQL primary key.
+        const existingSerials = rows.map(row => row.serial_number);
+
+        console.log('Existing Serials:', existingSerials.length === 0 ? 'None!' : existingSerials);
+        if (existingSerials.length > 0) {
+            // Finds the minimum and maximum in the serials that already exist to return a range.
+            const range = `${Math.min(...existingSerials)} - ${Math.max(...existingSerials)}`;
+            console.log('Range:', range); // Server-side debug.
+            return { err: `Numeros ya impresos: ${range}`, overridable: true };
+        }
+        return {};
+    } catch (err) {
+        return { err: err.message };
     }
-    return { unique: true };
 }
 
 /**
@@ -143,9 +161,9 @@ async function insertSerials(serialArray) {
     }
     try {
         await pool.query(sqlString, serialArray);
-        return true;
+        return {};
     } catch (err) {
-        return false;
+        return { err: 'No se pudo insertar en la base de datos.' };
     }
 }
 
@@ -158,15 +176,5 @@ async function insertSerials(serialArray) {
  * @returns 
  */
 async function sendPrint(startSerial, copies) {
-    const printData = await (await fetch(`http://${hostname}:3010/Integration/WebServiceIntegration/Execute`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            SerialNumber: startSerial,
-            Copies: copies
-        })
-    })).json();
-    return printData;
+
 }

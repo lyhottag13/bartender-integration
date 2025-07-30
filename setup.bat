@@ -1,4 +1,11 @@
+@echo OFF
+:: Clean installs the backend and frontend dependencies.
 CALL npm ci
+cd frontend
+CALL npm ci
+CALL npm run build
+cd ..
+
 set /p host=What's the host IP? 
 set /p user=What's the user? 
 set /p password=What's the password? 
@@ -12,6 +19,10 @@ echo     password: '%password%',                   >> src/db.js
 echo     database: '%database%'                    >> src/db.js
 echo });                                           >> src/db.js
 echo export default pool;                          >> src/db.js
+
+set /p hostname=What's the Integration Builder hostname? 
+
+echo export default '%hostname%'; > src\hostname.js
 
 set /p port=What's the desired localhost port? 
 

@@ -21,7 +21,6 @@
   "homepage": "https://github.com/lyhottag13/bartender-integration#readme",
   "dependencies": {
     "cors": "^2.8.5",
-    "date-fns": "^4.1.0",
     "express": "^5.1.0",
     "mysql2": "^3.14.2"
   }
