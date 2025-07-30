@@ -2,6 +2,7 @@ import pool from './src/db.js';
 import { getDate, getISOWeek } from 'date-fns';
 import port from './src/port.js';
 import hostname from './src/hostname.js';
+import cors from 'cors';
 
 // START BOILERPLATE.
 
@@ -14,8 +15,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Dependencies for the app to read user input and to return JSONs.
+app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.urlencoded({ extended: true }));
 
 app.listen(port, '0.0.0.0', () => {
@@ -25,9 +27,9 @@ app.listen(port, '0.0.0.0', () => {
 // END BOILERPLATE.
 
 // Shows the main app screen.
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'app.html'));
-});
+// app.get('*', (req, res) => {
+//     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+// });
 
 app.post('/api/send', async (req, res) => {
     const { startIndex, endIndex, override } = req.body;

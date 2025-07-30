@@ -32,8 +32,6 @@ body {
     }
 }
 
-#input-wrapper {}
-
 #input-wrapper input {
     font-family: monospace;
     text-align: center;
