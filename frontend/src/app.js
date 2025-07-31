@@ -66,12 +66,13 @@ async function handleSubmit(e) {
             window.alert(`Datecode invalido:\n${datecodeData.err}`);
             return;
         }
+        // Wraps the datecode as a number to have data types be consistent.
+        newDatecode = Number(newDatecode);
         override = true;
     }
     toggleButtons(false);
     toggleModal(true);
     const printData = await handlePrint(startIndex, endIndex, override, override ? newDatecode : getDatecode());
-    console.log(printData);
     if (printData.err) {
         window.alert(`Algo fue mal:\n${printData.err}`);
     } else {
@@ -213,7 +214,7 @@ function checkDatecode(newDatecode) {
         err += 'Datecode solo acepta digitos\n';
     }
     if (Number(newDatecode) > getDatecode()) {
-        err += 'Aun no se pueden imprimir estas etiquetas\n';
+        err += 'Aun no puede imprimir estas etiquetas\n';
     }
     return { err };
 }

@@ -51,7 +51,7 @@ app.post('/api/send', async (req, res) => {
 
     const uniquePrintData = await isUniquePrint(serialArray);
     if (uniquePrintData.err) {
-        const isOverridden = uniquePrintData.overridable && override; 
+        const isOverridden = uniquePrintData.overridable && override;
         if (!isOverridden) {
             responseObject.err = uniquePrintData.err;
             res.json(responseObject);
@@ -85,6 +85,15 @@ app.post('/api/password', (req, res) => {
     res.json({});
 });
 
+/**
+ * Sends the printing parameters to the Integration Builder app's API. The API
+ * might change locations or IP address, so it's a good idea to have the hostname
+ * be variable.
+ * @param {string} startSerial The starting serial number, as APBUAESAXXXX00000
+ * @param {number} copies The number of serializations.
+ * @param {number} datecode The desired datecode, as YYWW.
+ * @returns An error, if there was one.
+ */
 async function handlePrint(serialArray, copies, datecode) {
     const startSerial = `APBUESA${datecode + serialArray[0]}`;
 
@@ -107,6 +116,7 @@ async function handlePrint(serialArray, copies, datecode) {
         }
         return {};
     } catch (err) {
+        console.log(err.stack);
         return { err: err.message };
     }
 }
@@ -142,6 +152,7 @@ async function isUniquePrint(serialArray) {
         }
         return {};
     } catch (err) {
+        console.log(err.stack);
         return { err: err.message };
     }
 }
@@ -163,18 +174,9 @@ async function insertSerials(serialArray) {
         await pool.query(sqlString, serialArray);
         return {};
     } catch (err) {
+        console.log(err.stack);
         return { err: 'No se pudo insertar en la base de datos.' };
     }
 }
 
-/**
- * Sends the printing parameters to the Integration Builder app's API. The API
- * might change locations or IP address, so it's a good idea to have the hostname
- * be variable.
- * @param {string} startSerial 
- * @param {number} copies 
- * @returns 
- */
-async function sendPrint(startSerial, copies) {
 
-}
