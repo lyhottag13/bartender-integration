@@ -95,7 +95,7 @@ app.post('/api/password', (req, res) => {
  * @returns An error, if there was one.
  */
 async function handlePrint(serialArray, copies, datecode) {
-    const startSerial = `APBUESA${datecode + serialArray[0]}`;
+    const startSerial = `APBUAESA${datecode + serialArray[0]}`;
 
     // Sends the print and checks the status of the print.
     try {
