@@ -40,14 +40,13 @@ app.post('/api/send', async (req, res) => {
     */
     const copies = endIndex - startIndex + 1;
 
-    const serialArray = []; // An array of serial numbers, only the five digits at the end.
+    // const serialArray = []; // An array of serial numbers, only the five digits at the end.
     const responseObject = {}; // The object that will be res'ed to the client.
 
     // Builds the serialArray with every serial between startIndex and endIndex.
-    for (let i = 0; i < copies; i++) {
-        const currentSerial = `00000${Number.parseInt(startIndex) + i}`.slice(-5);
-        serialArray.push(currentSerial);
-    }
+    const serialArray = Array.from({ length: copies }, (_, i) => {
+        return String(startIndex + i).padStart(5, '0');
+    });
 
     const uniquePrintData = await isUniquePrint(serialArray);
     if (uniquePrintData.err) {
@@ -59,7 +58,8 @@ app.post('/api/send', async (req, res) => {
         }
     }
 
-    const printData = await handlePrint(serialArray, copies, datecode);
+    const startSerial = `APBUAESA${datecode + serialArray[0]}`
+    const printData = await handlePrint(startSerial, copies);
     if (printData.err) {
         responseObject.err = printData.err;
         res.json(responseObject);
@@ -67,7 +67,7 @@ app.post('/api/send', async (req, res) => {
     }
 
     const insertData = await insertSerials(serialArray);
-    if (!insertData.err) {
+    if (insertData.err) {
         responseObject.err = insertData.err;
         res.json(responseObject);
         return;
@@ -91,14 +91,11 @@ app.post('/api/password', (req, res) => {
  * be variable.
  * @param {string} startSerial The starting serial number, as APBUAESAXXXX00000
  * @param {number} copies The number of serializations.
- * @param {number} datecode The desired datecode, as YYWW.
  * @returns An error, if there was one.
  */
-async function handlePrint(serialArray, copies, datecode) {
-    const startSerial = `APBUAESA${datecode + serialArray[0]}`;
-
-    // Sends the print and checks the status of the print.
+async function handlePrint(startSerial, copies) {
     try {
+        // Sends the print and checks the status of the print.
         const response = await fetch(`http://${hostname}:3010/Integration/WebServiceIntegration/Execute`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -117,7 +114,7 @@ async function handlePrint(serialArray, copies, datecode) {
         return {};
     } catch (err) {
         console.log(err.stack);
-        return { err: err.message };
+        return { err: 'No se pudo conectar a Integration Builder.' };
     }
 }
 
@@ -127,32 +124,31 @@ async function handlePrint(serialArray, copies, datecode) {
  * been printed yet, and this function returns true.
  * @param {string[]} serialArray The serial numbers that will be checked 
  *                               against the database.
- * @returns An object with the success of the uniqueness
+ * @returns An error, if there is any.
  */
 async function isUniquePrint(serialArray) {
-    let sqlString = 'SELECT * FROM bartender_printed WHERE';
-    for (let i = 0; i < serialArray.length; i++) {
-        sqlString += `${i !== 0 ? ' OR' : ''} serial_number LIKE ?`;
-    }
-    // Prepends a % to each serial number since it helps in the query by acting as a wildcard.
-    const serialArrayWildcard = serialArray.map(serial => `%${serial}`);
-
+    const sqlString = 'SELECT serial_number FROM bartender_printed WHERE serial_number BETWEEN ? AND ?';
+    const firstSerialNumber = serialArray[0];
+    const lastSerialNumber = serialArray.at(-1);
     try {
-        const [rows] = await pool.execute(sqlString, serialArrayWildcard);
+        const [rows] = await pool.execute(sqlString, [firstSerialNumber, lastSerialNumber]);
 
-        // Only takes the serial numbers from each row, and removes the MySQL primary key.
+        // Maps the serial_number properties of each row to become an array.
         const existingSerials = rows.map(row => row.serial_number);
 
-        console.log('Existing Serials:', existingSerials.length === 0 ? 'None!' : existingSerials);
+        console.log('Existing Serials:', existingSerials.length === 0 ? 'None!' : existingSerials); // Server-side debug.
         if (existingSerials.length > 0) {
             // Finds the minimum and maximum in the serials that already exist to return a range.
-            const range = `${Math.min(...existingSerials)} - ${Math.max(...existingSerials)}`;
+            const min = Math.min(...existingSerials);
+            const max = Math.max(...existingSerials);
+            const range = `${min} - ${max}`;
+
             console.log('Range:', range); // Server-side debug.
             return { err: `Numeros ya impresos: ${range}`, overridable: true };
         }
         return {};
     } catch (err) {
-        console.log(err.stack);
+        console.log(err.stack); // Server-side debug.
         return { err: err.message };
     }
 }

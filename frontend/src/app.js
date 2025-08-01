@@ -7,19 +7,20 @@ import { getISOWeek } from 'date-fns';
  * page to a new state.
  */
 async function main() {
+    const filterLetters = function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+    }
     document.addEventListener('keypress', handleKeyPress);
     elements.printButton.addEventListener('click', handleSubmit);
     elements.reprintButton.addEventListener('click', handleSubmit);
 
     elements.datecode.innerText = `Datecode: ${getDatecode()}`;
 
-    elements.startIndexInput.oninput = function () {
-        this.value = this.value.replace(/[^0-9]/g, '');
-    };
-    elements.endIndexInput.oninput = function () {
-        this.value = this.value.replace(/[^0-9]/g, '');
-    };
+    elements.startIndexInput.oninput = filterLetters;
+    elements.endIndexInput.oninput = filterLetters;
     reset();
+
+
 }
 
 /**
@@ -93,6 +94,13 @@ function handleKeyPress(e) {
     }
 }
 
+/**
+ * Checks the inputs for validity. There is a capacity for both errors and
+ * warnings, but this errors take priority in this function.
+ * @param {number} startIndex The starting index for the print.
+ * @param {number} endIndex The ending index of the print.
+ * @returns An error/warning stating the inputs' status, if there is one.
+ */
 function checkInput(startIndex, endIndex) {
     let errorMessage = '';
     let warningMessage = '';
@@ -119,7 +127,7 @@ function checkInput(startIndex, endIndex) {
     if (warningMessage) {
         return { warn: warningMessage };
     }
-    return { success: true };
+    return {};
 }
 
 /**
@@ -127,7 +135,8 @@ function checkInput(startIndex, endIndex) {
  * @param {number} startIndex 
  * @param {number} endIndex 
  * @param {boolean} override 
- * @returns The data associated with the print fetch.
+ * @param {number} datecode 
+ * @returns An error, if there is any.
  */
 async function handlePrint(startIndex, endIndex, override, datecode) {
     try {
@@ -146,7 +155,7 @@ async function handlePrint(startIndex, endIndex, override, datecode) {
         }
         const printData = await response.json();
         if (printData.err) {
-            return {err: printData.err};
+            return { err: printData.err };
         }
         return {};
     } catch (err) {
@@ -178,6 +187,7 @@ async function submitPassword(password) {
         return {};
 
     } catch (err) {
+        console.log(err.stack); // Client-side debug.
         return { err: err.message };
     }
 }
