@@ -1,8 +1,10 @@
 @echo OFF
 :: Clean installs the backend and frontend dependencies.
+echo Clean installing node_modules...
 CALL npm ci
 cd frontend
 CALL npm ci
+echo Building frontend...
 CALL npm run build
 cd ..
 
@@ -28,20 +30,7 @@ set /p port=What's the desired localhost port?
 
 echo export default %port%; > src\port.js
 
-echo ^<?xml version="1.0" encoding="UTF-8"?^> > web.config
-echo ^<configuration^> >> web.config
-echo   ^<system.webServer^> >> web.config
-echo     ^<rewrite^> >> web.config
-echo       ^<rules^> >> web.config
-echo         ^<rule name="ReverseProxyInboundRule1" stopProcessing="true"^> >> web.config
-echo           ^<match url="(.*)" /^> >> web.config
-echo           ^<action type="Rewrite" url="http://localhost:%port%/{R:1}" /^> >> web.config
-echo         ^</rule^> >> web.config
-echo       ^</rules^> >> web.config
-echo     ^</rewrite^> >> web.config
-echo   ^</system.webServer^> >> web.config
-echo ^</configuration^> >> web.config
-
+echo Creating new PM2 process...
 CALL pm2 delete bartender
 CALL pm2 start server.js --name bartender
 CALL pm2 save
