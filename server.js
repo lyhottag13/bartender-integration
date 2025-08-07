@@ -106,7 +106,7 @@ app.get('/api/max', async (_req, res) => {
 
 app.get('/api/excel', async (_req, res) => {
     try {
-        const sqlString = 'SELECT * FROM bartender_batch';
+        const sqlString = 'SELECT * FROM bartender_batch ORDER BY datetime DESC';
         const [rows] = await pool.query(sqlString);
 
         // Creates the Excel workbook.

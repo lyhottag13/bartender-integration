@@ -250,6 +250,9 @@ function checkDatecode(newDatecode) {
     if (Number(newDatecode) > getDatecode()) {
         err += 'Aun no puede imprimir estas etiquetas\n';
     }
+    if (Number(newDatecode.slice(2)) > 52) {
+        err += 'Semana de datecode invalida\n';
+    }
     return { err };
 }
 
