@@ -5,7 +5,10 @@ const elements = {
     endIndexInput: document.getElementById('end-index'),
     datecodeWrapper: document.getElementById('datecode-wrapper'),
     datecode: document.getElementById('datecode'),
+    highestWrapper: document.getElementById('highest-wrapper'),
+    highest: document.getElementById('highest'),
     modal: document.getElementById('modal-wrapper'),
-    modalText: document.getElementById('modal-text')
+    modalText: document.getElementById('modal-text'),
+    downloadButton: document.getElementById('download')
 };
 export default elements;

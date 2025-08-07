@@ -7,12 +7,15 @@ import { getISOWeek } from 'date-fns';
  * page to a new state.
  */
 async function main() {
-    const filterLetters = function() {
+    const filterLetters = function () {
         this.value = this.value.replace(/[^0-9]/g, '');
     }
     document.addEventListener('keypress', handleKeyPress);
     elements.printButton.addEventListener('click', handleSubmit);
     elements.reprintButton.addEventListener('click', handleSubmit);
+    elements.downloadButton.addEventListener('click', () => {
+        window.open('/api/excel');
+    });
 
     elements.datecode.innerText = `Datecode: ${getDatecode()}`;
 
@@ -21,6 +24,11 @@ async function main() {
     reset();
 
 
+}
+
+async function setMax() {
+    const { max } = await getMax();
+    elements.highest.innerText = `Last: ${max}`;
 }
 
 /**
@@ -73,12 +81,14 @@ async function handleSubmit(e) {
     }
     toggleButtons(false);
     toggleModal(true);
-    const printData = await handlePrint(startIndex, endIndex, override, override ? newDatecode : getDatecode());
+    const datecode = override ? newDatecode : getDatecode();
+    const printData = await handlePrint(startIndex, endIndex, override, datecode);
     if (printData.err) {
         window.alert(`Algo fue mal:\n${printData.err}`);
     } else {
         window.alert('Impresion exitosa');
     }
+    reset();
     toggleModal(false);
     toggleButtons(true);
 }
@@ -150,10 +160,10 @@ async function handlePrint(startIndex, endIndex, override, datecode) {
                 datecode
             })
         });
-        if (!response.ok) {
-            throw new Error('Something went wrong with the API call.');
-        }
         const printData = await response.json();
+        if (!response.ok) {
+            throw new Error(printData.err || 'Something went wrong with the API call.');
+        }
         if (printData.err) {
             return { err: printData.err };
         }
@@ -210,6 +220,20 @@ function getDatecode() {
     return datecode;
 }
 
+async function getMax() {
+    try {
+        const response = await fetch('/api/max');
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.err || 'getMax error');
+        }
+        return { max: data.max };
+    } catch (err) {
+        console.log(err.stack);
+        return { err: err.message };
+    }
+}
+
 /**
  * Checks whether the datecode is valid. There are three validations.
  * @param {string} newDatecode The user input datecode.
@@ -232,9 +256,10 @@ function checkDatecode(newDatecode) {
 /**
  * Resets the inputs so that they have no value.
  */
-function reset() {
+async function reset() {
     elements.startIndexInput.value = '';
     elements.endIndexInput.value = '';
+    setMax();
 }
 
 /**

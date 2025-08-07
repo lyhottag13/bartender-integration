@@ -10,7 +10,10 @@
 <body>
     <h1></h1>
     <div id="app-wrapper">
-        <div id="datecode-wrapper"><span id="datecode"></span></div>
+        <div id="top-panel-wrapper">
+            <div id="highest-wrapper" class="top-panel"><span id="highest"></span></div>
+            <div id="datecode-wrapper" class="top-panel"><span id="datecode"></span></div>
+        </div>
         <div id="input-wrapper">
             <input id="start-index" placeholder="Índice inicial" maxlength="5">
             <span>→</span>
@@ -23,6 +26,7 @@
         <div id="modal-wrapper">
             <span id="modal-text">Printing...</span>
         </div>
+        <button id="download">Download Excel</button>
     </div>
     <script type="module" src="./src/app.js"></script>
 </body>

@@ -13,14 +13,21 @@ body {
 
 #app-wrapper {
     display: grid;
-    grid-template-rows: 0.5fr 1fr 1fr;
+    grid-template-rows: 0.7fr 1.2fr 1fr 0.5fr;
     height: 100vh;
     width: 100vw;
     justify-items: center;
     align-items: center;
 }
 
-#datecode-wrapper {
+#top-panel-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2vw;
+    justify-content: start;
+}
+
+.top-panel {
     font-family: 'Courier New', Courier, monospace;
     font-weight: 700;
     border-radius: 20px;
@@ -79,6 +86,22 @@ body {
 #reprint {
     background-color: black;
     color: white;
+}
+
+#download {
+    background-color: green;
+    color: white;
+    padding: 20px;
+    border: solid black 3px;
+    border-radius: 20px;
+    width: 30vw;
+    font-size: 30px;
+    transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+    font-weight: 700;
+    align-self: center;
+}
+#download:hover {
+    filter: brightness(0.8);
 }
 
 #modal-wrapper {
