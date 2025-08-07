@@ -247,9 +247,6 @@ function checkDatecode(newDatecode) {
     if (!/\d/.test(newDatecode)) {
         err += 'Datecode solo acepta digitos\n';
     }
-    if (Number(newDatecode) > getDatecode()) {
-        err += 'Aun no puede imprimir estas etiquetas\n';
-    }
     if (Number(newDatecode.slice(2)) > 52) {
         err += 'Semana de datecode invalida\n';
     }
